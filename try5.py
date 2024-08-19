@@ -1,0 +1,131 @@
+import tkinter as tk
+from tkinter import Label, Text, Button
+import cv2
+from PIL import Image, ImageTk
+import numpy as np
+import pyttsx3
+
+class SignLanguageApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Sign Language Interpreter")
+        
+        # Set the size of the window
+        self.root.geometry("1000x600")
+        
+        # Configure grid layout
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=0)
+
+        # Set up the video capture
+        self.cap = cv2.VideoCapture(0)
+        
+        # Set up the camera feed label
+        self.camera_label = Label(root)
+        self.camera_label.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        # Set up the text display
+        self.text_display = Text(root, height=10, width=30, font=("Helvetica", 16), bg="#f0f0f0", fg="#333333", wrap=tk.WORD, padx=10, pady=10)
+        self.text_display.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        
+        # Add tags for text alignment and background colors
+        self.text_display.tag_configure("left", justify='left', background="#E1D5E7")  # Light purple background
+        self.text_display.tag_configure("right", justify='right', background="#6A1B9A", foreground="white")  # Dark purple background
+        
+        # Set up the buttons
+        self.start_button = Button(root, text="Start Translation", command=self.toggle_translation, font=("Helvetica", 14), bg="#4CAF50", fg="white")
+        self.start_button.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+
+        self.speech_button = Button(root, text="Text-to-Speech", command=self.toggle_speech, font=("Helvetica", 14), bg="#2196F3", fg="white")
+        self.speech_button.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Initialize text-to-speech engine
+        self.engine = pyttsx3.init()
+
+        # Center the camera label
+        self.camera_label.grid_propagate(False)
+        
+        # Variables to control the translation and speech state
+        self.translation_active = False
+        self.speech_active = False
+        
+    def toggle_translation(self):
+        self.translation_active = not self.translation_active
+        if self.translation_active:
+            self.start_button.config(text="Stop Translation")
+            self.update_camera_feed()
+        else:
+            self.start_button.config(text="Start Translation")
+        
+    def update_camera_feed(self):
+        if not self.translation_active:
+            return
+        
+        _, frame = self.cap.read()
+        
+        # Convert the frame to RGB (Tkinter uses RGB, OpenCV uses BGR)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Resize the frame to fit in the camera label
+        frame_rgb = cv2.resize(frame_rgb, (480, 360))
+        
+        # Convert the image to a PhotoImage to display it in Tkinter
+        img = Image.fromarray(frame_rgb)
+        img_tk = ImageTk.PhotoImage(image=img)
+        
+        # Update the image in the label
+        self.camera_label.imgtk = img_tk
+        self.camera_label.configure(image=img_tk)
+        i = 0
+        # Call the function to process the frame and update the text
+        while(i<5):
+            # self.process_frame(frame)
+            predicted_text = "Hello"
+            self.text_display.insert(tk.END, f"{predicted_text}\n", "left")
+            i = i+1
+        
+        # Schedule the next update
+        self.root.after(33, self.update_camera_feed)
+        
+    def process_frame(self, frame):
+        # Placeholder for ML model integration
+        predicted_text = "Hello"  # Replace this with your ML model's output
+        self.text_display.insert(tk.END, f"{predicted_text}\n", "left")
+        # Display the predicted text (left-aligned with light purple background)
+        # self.text_display.insert(tk.END, f"{predicted_text}\n", "left")
+        
+    def user_input(self, text):
+        # Display the user's input (right-aligned with dark purple background)
+        self.text_display.insert(tk.END, f"{text}\n", "right")
+        
+    def toggle_speech(self):
+        self.speech_active = not self.speech_active
+        if self.speech_active:
+            self.speech_button.config(text="Stop Text-to-Speech")
+            self.text_to_speech()
+        else:
+            self.speech_button.config(text="Text-to-Speech")
+        
+    def text_to_speech(self):
+        if not self.speech_active:
+            return
+        
+        text = self.text_display.get(1.0, tk.END).strip()
+        if text:
+            self.engine.say(text)
+            self.engine.runAndWait()
+        
+    def __del__(self):
+        self.cap.release()
+
+# Run the app
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SignLanguageApp(root)
+    
+    # Example of user input for testing
+    app.user_input("Hi there!")
+    
+    root.mainloop()
